@@ -499,6 +499,20 @@ function subscribeChannel(code) {
     setConnBadge(false);
   });
 
+  // Guest bağlandı (host dinler)
+  ablyChannel.subscribe('guest_joined', msg => {
+    if (myRole !== 'host') return;
+    if (roomPhase !== 'hosting' && roomPhase !== 'connecting') return;
+    oppName = msg.data.guestName || 'Misafir';
+    roomPhase = 'ready';
+    setRoomStatus('✅ ' + oppName + ' bağlandı!');
+    document.getElementById('room-action-area').innerHTML = `
+      <button class="btn btn-primary" style="width:100%;font-size:16px;margin-bottom:8px"
+        onclick="hostStartGame()">Oyunu Başlat 🎮</button>
+      <button class="btn btn-secondary" style="width:100%;font-size:14px;padding:10px"
+        onclick="cancelRoom()">İptal</button>`;
+  });
+
   ablyClient.connection.on('disconnected', () => setConnBadge(false));
   ablyClient.connection.on('connected',    () => setConnBadge(true));
 }
@@ -546,19 +560,6 @@ async function createRoom() {
   myRole = 'host';
   subscribeChannel(currentRoomCode);
   setConnBadge(true);
-
-  // Guest gelince dinle
-  ablyChannel.subscribe('guest_joined', msg => {
-    if (roomPhase !== 'hosting') return;
-    oppName = msg.data.guestName || 'Misafir';
-    roomPhase = 'ready';
-    setRoomStatus('✅ ' + oppName + ' bağlandı!');
-    document.getElementById('room-action-area').innerHTML = `
-      <button class="btn btn-primary" style="width:100%;font-size:16px;margin-bottom:8px"
-        onclick="hostStartGame()">Oyunu Başlat 🎮</button>
-      <button class="btn btn-secondary" style="width:100%;font-size:14px;padding:10px"
-        onclick="cancelRoom()">İptal</button>`;
-  });
 
   roomPhase = 'hosting';
   document.getElementById('room-code-display').textContent = currentRoomCode;
