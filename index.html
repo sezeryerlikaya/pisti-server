@@ -502,7 +502,7 @@ function subscribeChannel(code) {
   // Guest bağlandı (host dinler)
   ablyChannel.subscribe('guest_joined', msg => {
     if (myRole !== 'host') return;
-    if (roomPhase !== 'hosting' && roomPhase !== 'connecting') return;
+    if (roomPhase === 'playing') return;
     oppName = msg.data.guestName || 'Misafir';
     roomPhase = 'ready';
     setRoomStatus('✅ ' + oppName + ' bağlandı!');
@@ -625,8 +625,11 @@ async function joinRoom() {
   subscribeChannel(code);
   setConnBadge(true);
 
-  // Ev sahibine bildir
+  // Ev sahibine bildir — birkaç kez gönder, host henüz hazır olmayabilir
   publish('guest_joined', { guestName: myName });
+  setTimeout(() => { if (roomPhase === 'joining') publish('guest_joined', { guestName: myName }); }, 1500);
+  setTimeout(() => { if (roomPhase === 'joining') publish('guest_joined', { guestName: myName }); }, 3500);
+  setTimeout(() => { if (roomPhase === 'joining') publish('guest_joined', { guestName: myName }); }, 6000);
 
   roomPhase = 'joining';
   setJoinStatus('✅ Bağlandı! Ev sahibinin başlatmasını bekle...');
