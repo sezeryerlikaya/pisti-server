@@ -464,10 +464,10 @@ function subscribeChannel(code) {
   ablyChannel.subscribe('game_start', msg => {
     if (myRole !== 'guest') return;
     const d = msg.data;
-    gameTarget = d.target;
-    oppName    = d.hostName || 'Ev Sahibi';
+    gameTarget    = d.target;
     ONLINE_TARGET = d.target;
-    launchOnline_guest(d.deck);
+    oppName       = d.hostName || 'Ev Sahibi';
+    launchOnline_guest(d);
   });
 
   // Karşı taraf kart oynadı
@@ -488,8 +488,19 @@ function subscribeChannel(code) {
     if (msg.data.clientId === myClientId) return;
     if (myRole === 'guest') {
       gameTarget = msg.data.target;
-      applyNewRound_guest(msg.data.deck, msg.data.isRematch);
+      applyNewRound_guest(msg.data, msg.data.isRematch);
     }
+  });
+
+  // Host yeni el dağıttı
+  ablyChannel.subscribe('new_hand', msg => {
+    if (msg.data.clientId === myClientId) return;
+    if (myRole !== 'guest') return;
+    G.players[0].hand = cloneDeck(msg.data.guestHand);
+    G.players[1].hand = cloneDeck(msg.data.hostHand);
+    G.handNumber++;
+    G.currentTurn = 1 - G.currentTurn; // nextTurn'den devam
+    updateUI();
   });
 
   // Rakip ayrıldı
@@ -574,11 +585,23 @@ async function createRoom() {
 function hostStartGame() {
   if (roomPhase !== 'ready') return;
   roomPhase = 'playing';
-  const deck = createDeck();
-  publish('game_start', { deck, target: ONLINE_TARGET, hostName: myName });
-  gameTarget    = ONLINE_TARGET;
-  lastMode      = 'online';
-  launchOnline_host(deck);
+
+  // Host elleri burada hazırlar, hem kendisi kullanır hem guest'e gönderir
+  const fullDeck = createDeck();
+  const hostHand  = [fullDeck.pop(), fullDeck.pop(), fullDeck.pop(), fullDeck.pop()];
+  const guestHand = [fullDeck.pop(), fullDeck.pop(), fullDeck.pop(), fullDeck.pop()];
+  const pile      = [fullDeck.pop(), fullDeck.pop(), fullDeck.pop(), fullDeck.pop()];
+
+  publish('game_start', {
+    hostHand, guestHand, pile,
+    remainingDeck: fullDeck,
+    target: ONLINE_TARGET,
+    hostName: myName
+  });
+
+  gameTarget = ONLINE_TARGET;
+  lastMode   = 'online';
+  launchOnline_host(hostHand, guestHand, pile, fullDeck);
 }
 
 async function joinRoom() {
@@ -739,16 +762,18 @@ function startAI() {
 }
 
 // ── Online HOST başlat ───────────────────────────────────────────
-function launchOnline_host(deck) {
+function launchOnline_host(hostHand, guestHand, pile, remainingDeck) {
   lastMode = 'online';
   cleanupOverlays(); clearAITimers(); animating=false;
   pendingOppContinue=false; iContinued=false;
 
   G = makeGameState(myName, oppName, 'online');
   G.isHost = true;
-  G.deck   = cloneDeck(deck);
-  dealHands_online_host();
-  for (let i=0;i<4;i++) G.pile.push(G.deck.pop());
+  G.deck   = cloneDeck(remainingDeck);
+  G.players[0].hand = cloneDeck(hostHand);
+  G.players[1].hand = cloneDeck(guestHand);
+  G.pile = cloneDeck(pile);
+  G.handNumber = 1;
   document.getElementById('target-display').textContent = gameTarget;
   setConnBadge(true);
   updateUI();
@@ -757,16 +782,19 @@ function launchOnline_host(deck) {
 }
 
 // ── Online GUEST başlat ──────────────────────────────────────────
-function launchOnline_guest(deck) {
+function launchOnline_guest(data) {
   lastMode = 'online';
   cleanupOverlays(); clearAITimers(); animating=false;
   pendingOppContinue=false; iContinued=false;
 
   G = makeGameState(myName, oppName, 'online');
   G.isHost = false;
-  G.deck   = cloneDeck(deck);
-  dealHands_online_guest();
-  for (let i=0;i<4;i++) G.pile.push(G.deck.pop());
+  G.deck   = cloneDeck(data.remainingDeck);
+  // Guest = player0 (alt), Host = player1 (üst)
+  G.players[0].hand = cloneDeck(data.guestHand);
+  G.players[1].hand = cloneDeck(data.hostHand);
+  G.pile = cloneDeck(data.pile);
+  G.handNumber = 1;
   document.getElementById('target-display').textContent = gameTarget;
   setConnBadge(true);
   updateUI();
@@ -792,24 +820,17 @@ function dealHands_ai() {
   for (let p=0;p<2;p++) { G.players[p].hand=[]; for (let i=0;i<4;i++) G.players[p].hand.push(G.deck.pop()); }
   G.handNumber++; return true;
 }
-// Dağıt — Online HOST: sırayla bir host bir guest
-function dealHands_online_host() {
-  if (G.deck.length<8) return false;
-  G.players[0].hand=[]; G.players[1].hand=[];
-  for (let i=0;i<4;i++) {
-    G.players[0].hand.push(G.deck.pop()); // host
-    G.players[1].hand.push(G.deck.pop()); // guest
-  }
-  G.handNumber++; return true;
-}
-// Dağıt — Online GUEST: tam tersi (guest p0, host p1)
-function dealHands_online_guest() {
-  if (G.deck.length<8) return false;
-  const hostCards=[], guestCards=[];
-  for (let i=0;i<4;i++) { hostCards.push(G.deck.pop()); guestCards.push(G.deck.pop()); }
-  G.players[0].hand = guestCards;
-  G.players[1].hand = hostCards;
-  G.handNumber++; return true;
+// Dağıt — Online HOST: her iki eli hazırla, guest'e gönder
+function dealHands_online_coordinated() {
+  if (G.deck.length < 8) return false;
+  const hostHand  = [G.deck.pop(), G.deck.pop(), G.deck.pop(), G.deck.pop()];
+  const guestHand = [G.deck.pop(), G.deck.pop(), G.deck.pop(), G.deck.pop()];
+  G.players[0].hand = hostHand;
+  G.players[1].hand = guestHand;
+  G.handNumber++;
+  // Guest'e yeni eli bildir
+  publish('new_hand', { hostHand, guestHand });
+  return true;
 }
 
 // ── Kart oyna ────────────────────────────────────────────────────
@@ -850,8 +871,12 @@ function nextTurn() {
   const p0E=G.players[0].hand.length===0, p1E=G.players[1].hand.length===0;
   if (p0E && p1E) {
     let ok;
-    if (G.mode==='online') ok = G.isHost ? dealHands_online_host() : dealHands_online_guest();
+    if (G.mode==='online') ok = G.isHost ? dealHands_online_coordinated() : false;
     else ok = dealHands_ai();
+    if (!ok && G.mode==='online' && !G.isHost) {
+      // guest bekler, host yeni eli gönderecek
+      return;
+    }
     if (!ok) { endRound(); return; }
   }
   G.currentTurn = 1-G.currentTurn;
@@ -962,10 +987,16 @@ function actuallyNextRound() {
 
   if (G.mode==='online') {
     if (G.isHost) {
-      const deck=createDeck();
-      G.deck=cloneDeck(deck);
-      publish('new_round',{deck,target:gameTarget,isRematch:false});
-      dealHands_online_host();
+      const fullDeck  = createDeck();
+      const hostHand  = [fullDeck.pop(), fullDeck.pop(), fullDeck.pop(), fullDeck.pop()];
+      const guestHand = [fullDeck.pop(), fullDeck.pop(), fullDeck.pop(), fullDeck.pop()];
+      const pile      = [fullDeck.pop(), fullDeck.pop(), fullDeck.pop(), fullDeck.pop()];
+      G.deck = cloneDeck(fullDeck);
+      G.players[0].hand = cloneDeck(hostHand);
+      G.players[1].hand = cloneDeck(guestHand);
+      G.pile = cloneDeck(pile);
+      G.handNumber = 1;
+      publish('new_round', { hostHand, guestHand, pile, remainingDeck: fullDeck, target: gameTarget, isRematch: false });
     } else {
       // guest bekler — new_round mesajı gelince applyNewRound_guest çağrılır
       return;
@@ -980,14 +1011,17 @@ function actuallyNextRound() {
   if (G.mode==='ai'&&G.currentTurn===1) scheduleAI();
 }
 
-function applyNewRound_guest(deck, isRematch) {
+function applyNewRound_guest(data, isRematch) {
   if (isRematch) {
     G.players.forEach(p=>{ p.score=0; p.wonCards=[]; p.roundScore=0; p.cardCount=0; p.totalScore=0; });
     G.roundNumber=1;
   }
-  G.deck=cloneDeck(deck); G.pile=[]; G.currentTurn=0; G.handNumber=0;
-  dealHands_online_guest();
-  for (let i=0;i<4;i++) G.pile.push(G.deck.pop());
+  G.deck = cloneDeck(data.remainingDeck);
+  G.players[0].hand = cloneDeck(data.guestHand);
+  G.players[1].hand = cloneDeck(data.hostHand);
+  G.pile = cloneDeck(data.pile);
+  G.handNumber = 1;
+  G.currentTurn = 0;
   pendingOppContinue=false; iContinued=false;
   cleanupOverlays();
   updateUI();
@@ -1013,13 +1047,17 @@ function replayGame() {
   if (lastMode==='ai') { startAI(); return; }
   if (!G.isHost) { showToast('Ev sahibi yeni oyun başlatıyor...'); return; }
   // Host rematch
-  const deck=createDeck();
+  const fullDeck2  = createDeck();
+  const hostHand2  = [fullDeck2.pop(), fullDeck2.pop(), fullDeck2.pop(), fullDeck2.pop()];
+  const guestHand2 = [fullDeck2.pop(), fullDeck2.pop(), fullDeck2.pop(), fullDeck2.pop()];
+  const pile2      = [fullDeck2.pop(), fullDeck2.pop(), fullDeck2.pop(), fullDeck2.pop()];
   G.players.forEach(p=>{p.score=0;p.wonCards=[];p.roundScore=0;p.cardCount=0;p.totalScore=0;});
-  G.roundNumber=1; G.pile=[]; G.currentTurn=0; G.handNumber=0;
-  G.deck=cloneDeck(deck);
-  publish('new_round',{deck,target:gameTarget,isRematch:true});
-  dealHands_online_host();
-  for (let i=0;i<4;i++) G.pile.push(G.deck.pop());
+  G.roundNumber=1; G.currentTurn=0; G.handNumber=1;
+  G.deck = cloneDeck(fullDeck2);
+  G.players[0].hand = cloneDeck(hostHand2);
+  G.players[1].hand = cloneDeck(guestHand2);
+  G.pile = cloneDeck(pile2);
+  publish('new_round',{hostHand:hostHand2,guestHand:guestHand2,pile:pile2,remainingDeck:fullDeck2,target:gameTarget,isRematch:true});
   updateUI();
   showScreen('game');
 }
