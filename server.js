@@ -38,7 +38,7 @@ app.get('/token', async (req, res) => {
     const clientId = 'player_' + Math.random().toString(36).slice(2, 10);
     const tokenRequest = await ably.auth.createTokenRequest({
       clientId,
-      capability: { 'pisti-*': ['publish', 'subscribe', 'presence'] },
+      capability: { '*': ['publish', 'subscribe', 'presence'] },
       ttl: 3600000,
     });
     res.json({ tokenRequest, clientId });
