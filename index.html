@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>PİŞTİ</title>
+<script src="https://cdn.ably.com/lib/ably.min-2.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+
+:root {
+  --felt:#1a5c2a; --felt-dark:#0f3a1a; --felt-light:#246b33;
+  --gold:#d4a843; --gold-light:#f0cc70;
+  --cream:#f5f0e8; --red:#c0392b; --dark:#0a1f0f;
+  --card-w:58px; --card-h:84px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{font-family:'Crimson Text',serif;background:var(--felt-dark);height:100%;width:100%;overflow:hidden;position:fixed;touch-action:manipulation;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(36,107,51,.4) 0%,transparent 70%),repeating-linear-gradient(0deg,transparent,transparent 40px,rgba(0,0,0,.03) 40px,rgba(0,0,0,.03) 41px),repeating-linear-gradient(90deg,transparent,transparent 40px,rgba(0,0,0,.03) 40px,rgba(0,0,0,.03) 41px);pointer-events:none;}
+
+.screen{display:none;width:100%;height:100%;align-items:center;justify-content:center;flex-direction:column;padding:20px 16px;overflow-y:auto;}
+.screen.active{display:flex;}
+
+.logo{font-family:'Playfair Display',serif;font-size:clamp(52px,18vw,88px);font-weight:900;color:var(--gold);text-shadow:0 0 60px rgba(212,168,67,.5),3px 3px 0 rgba(0,0,0,.4);letter-spacing:8px;line-height:1;}
+.logo-sub{font-size:clamp(11px,3.5vw,15px);color:rgba(212,168,67,.6);letter-spacing:4px;text-transform:uppercase;margin-top:-8px;}
+.card-deco{display:flex;gap:10px;margin:4px 0;}
+.mini-card{width:38px;height:54px;background:white;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 12px rgba(0,0,0,.4);animation:float 3s ease-in-out infinite;}
+.mini-card:nth-child(2){animation-delay:.5s}.mini-card:nth-child(3){animation-delay:1s}.mini-card:nth-child(4){animation-delay:1.5s}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+
+.btn-group{display:flex;flex-direction:column;gap:11px;width:100%;max-width:300px;}
+.btn{padding:15px 24px;border:none;border-radius:10px;font-family:'Playfair Display',serif;font-size:18px;cursor:pointer;transition:all .15s;letter-spacing:1px;touch-action:manipulation;}
+.btn:active{transform:scale(.96);}
+.btn-primary{background:linear-gradient(135deg,var(--gold) 0%,#b8860b 100%);color:var(--dark);box-shadow:0 4px 20px rgba(212,168,67,.4),inset 0 1px 0 rgba(255,255,255,.3);}
+.btn-secondary{background:rgba(255,255,255,.05);color:var(--gold);border:1px solid rgba(212,168,67,.4);}
+.btn-secondary:active{background:rgba(212,168,67,.1);}
+.btn-danger{background:rgba(192,57,43,.25);color:#f1948a;border:1px solid rgba(192,57,43,.4);}
+.section-title{font-family:'Playfair Display',serif;color:var(--gold);font-size:clamp(20px,6vw,26px);text-align:center;}
+
+/* MODE SELECT */
+#mode-select{gap:16px;animation:fadeIn .4s ease;}
+.mode-cards{display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px;}
+.mode-card{background:rgba(255,255,255,.05);border:1px solid rgba(212,168,67,.3);border-radius:14px;padding:18px 20px;display:flex;align-items:center;gap:14px;cursor:pointer;color:var(--cream);touch-action:manipulation;transition:background .15s,transform .15s;}
+.mode-card:active{background:rgba(212,168,67,.1);border-color:var(--gold);transform:scale(.98);}
+.mode-icon{font-size:36px;flex-shrink:0;}
+.mode-label{font-family:'Playfair Display',serif;font-size:18px;color:var(--gold);}
+.mode-desc{font-size:12px;color:rgba(245,240,232,.5);margin-top:3px;}
+
+/* SETTINGS */
+#settings-screen{gap:18px;animation:fadeIn .4s ease;}
+.settings-box{background:rgba(255,255,255,.05);border:1px solid rgba(212,168,67,.3);border-radius:14px;padding:22px 20px;width:100%;max-width:320px;display:flex;flex-direction:column;gap:16px;}
+.setting-row{display:flex;flex-direction:column;gap:8px;}
+.setting-label{color:rgba(212,168,67,.8);font-size:12px;letter-spacing:1px;text-transform:uppercase;}
+.score-options{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.score-opt{padding:12px 8px;border:1px solid rgba(212,168,67,.3);border-radius:8px;background:rgba(255,255,255,.04);color:var(--cream);font-family:'Playfair Display',serif;font-size:20px;text-align:center;cursor:pointer;transition:all .15s;touch-action:manipulation;}
+.score-opt:active{transform:scale(.95);}
+.score-opt.selected{background:rgba(212,168,67,.18);border-color:var(--gold);color:var(--gold);box-shadow:0 0 10px rgba(212,168,67,.25);}
+
+/* ONLINE ROOM */
+#room-screen{gap:12px;animation:fadeIn .4s ease;}
+.room-box{background:rgba(255,255,255,.05);border:1px solid rgba(212,168,67,.3);border-radius:12px;padding:18px 20px;text-align:center;color:var(--cream);width:100%;max-width:320px;}
+.room-code-big{font-family:'Playfair Display',serif;font-size:48px;color:var(--gold);letter-spacing:10px;margin:8px 0;text-shadow:0 0 20px rgba(212,168,67,.4);}
+.room-status{font-size:12px;color:rgba(245,240,232,.6);min-height:18px;}
+.input-group{display:flex;gap:8px;width:100%;max-width:320px;}
+.game-input{flex:1;padding:12px;background:rgba(255,255,255,.07);border:1px solid rgba(212,168,67,.35);border-radius:8px;color:var(--cream);font-family:'Crimson Text',serif;font-size:22px;letter-spacing:6px;text-align:center;outline:none;text-transform:uppercase;}
+.game-input:focus{border-color:var(--gold);}
+.game-input::placeholder{color:rgba(245,240,232,.3);letter-spacing:2px;font-size:14px;}
+.or-divider{color:rgba(245,240,232,.3);font-size:13px;}
+.room-score-row{display:flex;flex-direction:column;gap:6px;width:100%;max-width:320px;}
+.room-score-opts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+.rscore-opt{padding:10px 4px;border:1px solid rgba(212,168,67,.3);border-radius:8px;background:rgba(255,255,255,.04);color:var(--cream);font-family:'Playfair Display',serif;font-size:16px;text-align:center;cursor:pointer;transition:all .15s;touch-action:manipulation;}
+.rscore-opt:active{transform:scale(.94);}
+.rscore-opt.selected{background:rgba(212,168,67,.18);border-color:var(--gold);color:var(--gold);}
+
+/* GAME */
+#game{padding:0;justify-content:space-between;background:var(--felt-dark);position:relative;}
+.opp-area{width:100%;flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding:8px 12px 4px;gap:6px;}
+.info-row{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:420px;}
+.player-info{background:rgba(10,31,15,.88);border:1px solid rgba(212,168,67,.3);border-radius:8px;padding:5px 10px;min-width:100px;text-align:center;transition:box-shadow .25s,border-color .25s;}
+.player-info.active-player{border-color:var(--gold);box-shadow:0 0 14px rgba(212,168,67,.45);}
+.pi-name{font-family:'Playfair Display',serif;color:var(--gold);font-size:11px;letter-spacing:.5px;}
+.pi-score{font-size:16px;color:var(--cream);font-weight:600;line-height:1.2;}
+.pi-cards{font-size:10px;color:rgba(245,240,232,.4);}
+.deck-box{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.deck-label{font-size:10px;color:rgba(245,240,232,.4);}
+.opp-hand{display:flex;justify-content:center;gap:5px;}
+.table-area{flex:1;width:100%;background:radial-gradient(ellipse at center,var(--felt-light) 0%,var(--felt) 55%,var(--felt-dark) 100%);display:flex;align-items:center;justify-content:center;position:relative;}
+.pile-zone{position:relative;width:130px;height:96px;display:flex;align-items:center;justify-content:center;}
+.pile-label{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);color:rgba(245,240,232,.4);font-size:11px;white-space:nowrap;}
+.target-bar{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.target-text{color:rgba(245,240,232,.45);font-size:11px;}
+.target-val{color:var(--gold-light);font-size:12px;font-family:'Playfair Display',serif;}
+.player-area{width:100%;flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding:4px 12px 12px;gap:6px;}
+.turn-label{font-size:12px;color:rgba(245,240,232,.45);text-align:center;height:16px;}
+.turn-label.my-turn{color:var(--gold-light);font-weight:600;}
+.player-hand{display:flex;justify-content:center;gap:8px;}
+.info-row-bottom{display:flex;align-items:center;width:100%;max-width:420px;margin-top:2px;}
+
+/* CARDS */
+.card{width:var(--card-w);height:var(--card-h);border-radius:7px;border:1.5px solid rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;font-family:'Crimson Text',serif;font-weight:600;box-shadow:2px 4px 10px rgba(0,0,0,.35);position:relative;flex-shrink:0;user-select:none;-webkit-user-select:none;transition:transform .15s,box-shadow .15s;}
+.card.face-up{background:white;cursor:pointer;}
+.card.face-up.playable::after{content:'';position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);width:6px;height:6px;background:rgba(212,168,67,.65);border-radius:50%;}
+.card.face-up.playable:active{transform:translateY(-16px) scale(1.07) !important;box-shadow:2px 16px 26px rgba(0,0,0,.5);z-index:30;}
+.card.face-down{background:linear-gradient(135deg,#1a3a8f 0%,#0d1f5c 50%,#1a3a8f 100%);cursor:default;}
+.card.face-down::after{content:'';position:absolute;inset:5px;border:1px solid rgba(255,255,255,.12);border-radius:3px;background:repeating-linear-gradient(45deg,transparent,transparent 5px,rgba(255,255,255,.04) 5px,rgba(255,255,255,.04) 6px);}
+.card-inner{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:1px;pointer-events:none;}
+.card-rank{font-size:17px;line-height:1;}
+.card-suit{font-size:20px;line-height:1;}
+.card.red{color:var(--red);}.card.black{color:#111;}
+.card.pile-card{position:absolute;cursor:default;pointer-events:none;}
+.card.pile-card::after{display:none;}
+
+/* FLYING CARD */
+.flying-card{position:fixed;pointer-events:none;z-index:999;border-radius:7px;border:1.5px solid rgba(0,0,0,.12);box-shadow:4px 8px 22px rgba(0,0,0,.55);width:var(--card-w);height:var(--card-h);display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);}
+.flying-card.from-bottom{animation:flyUp .44s cubic-bezier(.18,.89,.38,1.1) forwards;}
+.flying-card.from-top{animation:flyDown .44s cubic-bezier(.18,.89,.38,1.1) forwards;}
+@keyframes flyUp{0%{opacity:0;transform:translate(-50%,calc(-50% + 130px)) scale(.75) rotate(12deg)}25%{opacity:1}100%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0deg)}}
+@keyframes flyDown{0%{opacity:0;transform:translate(-50%,calc(-50% - 130px)) scale(.75) rotate(-12deg)}25%{opacity:1}100%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0deg)}}
+
+/* PIŞTI */
+.pisti-flash{position:fixed;top:48%;left:50%;transform:translate(-50%,-50%);font-family:'Playfair Display',serif;font-size:clamp(34px,10vw,52px);color:var(--gold);text-shadow:0 0 30px rgba(212,168,67,.9);pointer-events:none;animation:pistiPop .9s ease forwards;z-index:1200;white-space:nowrap;}
+@keyframes pistiPop{0%{opacity:0;transform:translate(-50%,-50%) scale(.4) rotate(-8deg)}30%{opacity:1;transform:translate(-50%,-58%) scale(1.25) rotate(3deg)}65%{opacity:1;transform:translate(-50%,-62%) scale(1) rotate(0deg)}100%{opacity:0;transform:translate(-50%,-80%) scale(.9)}}
+
+/* OVERLAYS */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;z-index:1000;animation:fadeIn .25s ease;}
+.overlay-box{background:linear-gradient(160deg,#0f3a1a,#1a5c2a);border:1px solid rgba(212,168,67,.5);border-radius:18px;padding:28px 24px;text-align:center;color:var(--cream);width:88%;max-width:320px;box-shadow:0 20px 60px rgba(0,0,0,.6);}
+.overlay-title{font-family:'Playfair Display',serif;color:var(--gold);font-size:22px;margin-bottom:16px;}
+.hand-scores{display:flex;justify-content:center;gap:24px;margin-bottom:14px;}
+.hs-player{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.hs-name{font-family:'Playfair Display',serif;color:var(--gold);font-size:13px;}
+.hs-pts{font-size:36px;font-weight:600;}
+.hs-total{font-size:12px;color:rgba(245,240,232,.5);}
+.hs-divider{width:1px;background:rgba(212,168,67,.25);}
+
+/* HUD */
+.hud{position:fixed;top:10px;right:12px;z-index:1100;}
+.exit-btn{background:rgba(0,0,0,.7);border:1px solid rgba(212,168,67,.35);color:rgba(212,168,67,.85);width:38px;height:38px;border-radius:8px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;outline:none;}
+.exit-btn:active{background:rgba(192,57,43,.3);color:#f1948a;}
+
+/* Bağlantı göstergesi */
+.conn-badge{position:fixed;top:10px;left:12px;z-index:1100;padding:5px 10px;border-radius:6px;font-size:11px;display:none;align-items:center;gap:5px;background:rgba(0,0,0,.65);}
+.conn-dot{width:7px;height:7px;border-radius:50%;}
+.conn-badge.online{border:1px solid rgba(46,204,64,.4);}
+.conn-badge.online .conn-dot{background:#2ecc40;box-shadow:0 0 6px #2ecc40;}
+.conn-badge.offline{border:1px solid rgba(192,57,43,.5);}
+.conn-badge.offline .conn-dot{background:#e74c3c;}
+.conn-badge span{color:rgba(245,240,232,.65);}
+
+#exit-modal{display:none;}
+#exit-modal.show{display:flex;}
+
+/* RESULT */
+#result{gap:16px;animation:fadeIn .5s ease;}
+.result-title{font-family:'Playfair Display',serif;font-size:clamp(30px,9vw,46px);color:var(--gold);text-align:center;}
+.result-box{background:rgba(255,255,255,.05);border:1px solid rgba(212,168,67,.3);border-radius:16px;padding:22px;width:100%;max-width:310px;color:var(--cream);text-align:center;}
+.result-scores{display:flex;gap:20px;justify-content:center;margin:12px 0;}
+.result-player{font-family:'Playfair Display',serif;font-size:16px;color:var(--gold);}
+.result-pts{font-size:34px;font-weight:600;}
+.result-winner{font-family:'Playfair Display',serif;font-size:18px;color:var(--gold);margin-top:10px;}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(10,31,15,.95);border:1px solid rgba(212,168,67,.4);color:var(--cream);padding:9px 18px;border-radius:8px;font-size:13px;z-index:1300;animation:toastIn .3s ease;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center;}
+@keyframes toastIn{from{opacity:0;bottom:8px}to{opacity:1;bottom:24px}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(212,168,67,.3);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:5px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- EXIT MODAL -->
+<div id="exit-modal" class="overlay">
+  <div class="overlay-box">
+    <div class="overlay-title">Oyundan Çık?</div>
+    <p style="color:rgba(245,240,232,.65);font-size:14px;margin-bottom:20px">Mevcut ilerleme kaybolacak.</p>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-secondary" style="flex:1;padding:13px 0;font-size:16px" onclick="closeExitModal()">İptal</button>
+      <button class="btn btn-danger"    style="flex:1;padding:13px 0;font-size:16px" onclick="doExit()">Çık</button>
+    </div>
+  </div>
+</div>
+
+<!-- MENU -->
+<div id="menu" class="screen active">
+  <div class="logo">PİŞTİ</div>
+  <div class="logo-sub">Klasik Türk Kart Oyunu</div>
+  <div class="card-deco">
+    <div class="mini-card">♠</div>
+    <div class="mini-card" style="color:#c0392b">♥</div>
+    <div class="mini-card" style="color:#c0392b">♦</div>
+    <div class="mini-card">♣</div>
+  </div>
+  <div class="btn-group">
+    <button class="btn btn-primary"   onclick="showScreen('mode-select')">Oyna</button>
+    <button class="btn btn-secondary" onclick="showScreen('settings-screen')">⚙️ Ayarlar</button>
+    <button class="btn btn-secondary" onclick="showRules()">Kurallar</button>
+  </div>
+</div>
+
+<!-- MODE SELECT -->
+<div id="mode-select" class="screen">
+  <div class="section-title">Oyun Modu</div>
+  <div class="mode-cards">
+    <div class="mode-card" onclick="startAI()">
+      <span class="mode-icon">🤖</span>
+      <div>
+        <div class="mode-label">Yapay Zekaya Karşı</div>
+        <div class="mode-desc">Bilgisayara karşı oyna</div>
+      </div>
+    </div>
+    <div class="mode-card" onclick="showScreen('room-screen')">
+      <span class="mode-icon">🌐</span>
+      <div>
+        <div class="mode-label">Online Arkadaşla</div>
+        <div class="mode-desc">Oda koduyla gerçek zamanlı oyna</div>
+      </div>
+    </div>
+  </div>
+  <button class="btn btn-secondary" style="width:100%;max-width:320px;margin-top:8px" onclick="showScreen('menu')">← Geri</button>
+</div>
+
+<!-- SETTINGS -->
+<div id="settings-screen" class="screen">
+  <div class="section-title">⚙️ Ayarlar</div>
+  <div class="settings-box">
+    <div class="setting-row">
+      <div class="setting-label">🎯 Hedef Puan (YZ Modu)</div>
+      <div class="score-options" id="ai-score-opts">
+        <div class="score-opt selected" data-val="51"  onclick="selectAIScore(this)">51</div>
+        <div class="score-opt"          data-val="81"  onclick="selectAIScore(this)">81</div>
+        <div class="score-opt"          data-val="101" onclick="selectAIScore(this)">101</div>
+        <div class="score-opt"          data-val="151" onclick="selectAIScore(this)">151</div>
+      </div>
+    </div>
+  </div>
+  <button class="btn btn-primary" style="width:100%;max-width:320px;margin-top:6px" onclick="showScreen('menu')">Kaydet ✓</button>
+</div>
+
+<!-- ONLINE ROOM -->
+<div id="room-screen" class="screen">
+  <div class="section-title">🌐 Online Oyun</div>
+
+  <div class="room-score-row">
+    <div style="color:rgba(212,168,67,.7);font-size:12px;letter-spacing:1px;text-transform:uppercase;">🎯 Hedef Puan</div>
+    <div class="room-score-opts" id="online-score-opts">
+      <div class="rscore-opt selected" data-val="51"  onclick="selectOnlineScore(this)">51</div>
+      <div class="rscore-opt"          data-val="81"  onclick="selectOnlineScore(this)">81</div>
+      <div class="rscore-opt"          data-val="101" onclick="selectOnlineScore(this)">101</div>
+      <div class="rscore-opt"          data-val="151" onclick="selectOnlineScore(this)">151</div>
+    </div>
+  </div>
+
+  <div class="room-box">
+    <div style="color:rgba(245,240,232,.6);font-size:12px;letter-spacing:1px;margin-bottom:8px;text-transform:uppercase;">Oda Oluştur</div>
+    <div class="room-code-big" id="room-code-display">—</div>
+    <div class="room-status"   id="room-status">Oda kurmak için tıkla</div>
+    <div id="room-action-area" style="margin-top:10px;">
+      <button class="btn btn-primary" style="width:100%;font-size:16px" onclick="createRoom()">Oda Oluştur</button>
+    </div>
+  </div>
+
+  <div class="or-divider">— veya —</div>
+
+  <div style="width:100%;max-width:320px;">
+    <div style="color:rgba(245,240,232,.6);font-size:12px;letter-spacing:1px;margin-bottom:8px;text-align:center;text-transform:uppercase;">Koda Katıl</div>
+    <div class="input-group">
+      <input class="game-input" id="join-code" placeholder="KODU GİR" maxlength="4"
+        oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');onJoinInput()">
+      <button class="btn btn-primary" id="join-btn"
+        style="white-space:nowrap;padding:0 18px;opacity:.4;pointer-events:none"
+        onclick="joinRoom()">Katıl</button>
+    </div>
+    <div id="join-status" style="color:rgba(245,240,232,.45);font-size:12px;text-align:center;margin-top:6px;min-height:18px;"></div>
+  </div>
+
+  <button class="btn btn-secondary" style="width:100%;max-width:320px" onclick="leaveRoomScreen()">← Geri</button>
+</div>
+
+<!-- GAME -->
+<div id="game" class="screen">
+  <div class="hud">
+    <button class="exit-btn" onclick="openExitModal()">✕</button>
+  </div>
+  <div class="conn-badge" id="conn-badge">
+    <div class="conn-dot"></div>
+    <span id="conn-text">Bağlı</span>
+  </div>
+
+  <div class="opp-area">
+    <div class="info-row">
+      <div class="player-info" id="pi-top">
+        <div class="pi-name"  id="name-top">Rakip</div>
+        <div class="pi-score" id="score-top">0</div>
+        <div class="pi-cards" id="cards-top">el puanı: 0</div>
+      </div>
+      <div class="deck-box">
+        <div id="deck-visual"></div>
+        <div class="deck-label" id="deck-count">—</div>
+      </div>
+      <div style="min-width:100px"></div>
+    </div>
+    <div class="opp-hand" id="opp-hand"></div>
+  </div>
+
+  <div class="table-area">
+    <div class="pile-zone" id="pile-zone">
+      <div class="pile-label" id="pile-count">Boş masa</div>
+    </div>
+    <div class="target-bar">
+      <span class="target-text">Hedef:</span>
+      <span class="target-val" id="target-display">51</span>
+    </div>
+  </div>
+
+  <div class="player-area">
+    <div class="turn-label" id="turn-label"></div>
+    <div class="player-hand" id="player-hand"></div>
+    <div class="info-row-bottom">
+      <div class="player-info" id="pi-bottom">
+        <div class="pi-name"  id="name-bottom">Sen</div>
+        <div class="pi-score" id="score-bottom">0</div>
+        <div class="pi-cards" id="cards-bottom">el puanı: 0</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div id="result" class="screen">
+  <div class="result-title" id="result-title">Oyun Bitti!</div>
+  <div class="result-box">
+    <div class="result-scores">
+      <div>
+        <div class="result-player" id="res-name1"></div>
+        <div class="result-pts"    id="res-pts1"></div>
+        <div style="color:rgba(245,240,232,.5);font-size:11px" id="res-info1"></div>
+      </div>
+      <div style="width:1px;background:rgba(212,168,67,.2)"></div>
+      <div>
+        <div class="result-player" id="res-name2"></div>
+        <div class="result-pts"    id="res-pts2"></div>
+        <div style="color:rgba(245,240,232,.5);font-size:11px" id="res-info2"></div>
+      </div>
+    </div>
+    <div class="result-winner" id="res-winner"></div>
+  </div>
+  <div class="btn-group" style="max-width:300px">
+    <button class="btn btn-primary"   onclick="replayGame()">Tekrar Oyna</button>
+    <button class="btn btn-secondary" onclick="goMenu()">Ana Menü</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ════════════════════════════════════════════════════════════════
+//  ⚠️  SADECE BU SATIRI DEĞİŞTİR — kendi Railway/Render URL'n
+// ════════════════════════════════════════════════════════════════
+const SERVER_URL = 'https://pisti-server-production.up.railway.app';
+// ════════════════════════════════════════════════════════════════
+
+// ── Settings ─────────────────────────────────────────────────────
+let SETTINGS      = { aiTarget: 51 };
+let ONLINE_TARGET = 51;
+
+function selectAIScore(el) {
+  document.querySelectorAll('#ai-score-opts .score-opt').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  SETTINGS.aiTarget = parseInt(el.dataset.val);
+}
+function selectOnlineScore(el) {
+  document.querySelectorAll('#online-score-opts .rscore-opt').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  ONLINE_TARGET = parseInt(el.dataset.val);
+}
+
+// ── Nav ──────────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function showRules() {
+  showToast('J her kartı alır. Aynı karta aynı kart = PİŞTİ (+10 puan)!', 4000);
+}
+function goMenu() {
+  cleanupOverlays();
+  disconnectAbly();
+  resetRoomUI();
+  showScreen('menu');
+}
+
+// ── Exit modal ───────────────────────────────────────────────────
+function openExitModal()  { document.getElementById('exit-modal').classList.add('show'); }
+function closeExitModal() { document.getElementById('exit-modal').classList.remove('show'); }
+function doExit() {
+  closeExitModal();
+  cleanupOverlays();
+  animating = false;
+  clearAITimers();
+  if (currentRoomCode) fetch(`${SERVER_URL}/room/${currentRoomCode}`, { method:'DELETE' }).catch(()=>{});
+  disconnectAbly();
+  showScreen('menu');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ABLY — token-auth (key sunucuda, client'a hiç gelmiyor)
+// ════════════════════════════════════════════════════════════════
+let ablyClient  = null;
+let ablyChannel = null;
+let myClientId  = null;
+let myRole      = null;   // 'host' | 'guest'
+let myName      = 'Sen';
+let oppName     = 'Rakip';
+
+async function connectAbly() {
+  // 1. Sunucudan token al
+  let tokenData;
+  try {
+    const res = await fetch(`${SERVER_URL}/token`);
+    if (!res.ok) throw new Error('Sunucu yanıt vermedi');
+    tokenData = await res.json();
+  } catch (e) {
+    throw new Error('Sunucuya bağlanılamadı: ' + e.message);
+  }
+
+  myClientId = tokenData.clientId;
+
+  // 2. Token ile Ably'e bağlan
+  return new Promise((resolve, reject) => {
+    ablyClient = new Ably.Realtime({
+      authCallback: (tokenParams, callback) => {
+        callback(null, tokenData.tokenRequest);
+      },
+      clientId: myClientId,
+    });
+    const timer = setTimeout(() => reject(new Error('Bağlantı zaman aşımı')), 10000);
+    ablyClient.connection.once('connected', () => { clearTimeout(timer); resolve(); });
+    ablyClient.connection.once('failed',    () => { clearTimeout(timer); reject(new Error('Ably bağlantısı başarısız')); });
+  });
+}
+
+function disconnectAbly() {
+  if (ablyChannel) { try { ablyChannel.unsubscribe(); } catch(e){} ablyChannel = null; }
+  if (ablyClient)  { try { ablyClient.close(); }        catch(e){} ablyClient  = null; }
+  setConnBadge(false, true);
+}
+
+function setConnBadge(online, hide=false) {
+  const b = document.getElementById('conn-badge');
+  if (hide) { b.style.display = 'none'; return; }
+  b.style.display = 'flex';
+  b.className = 'conn-badge ' + (online ? 'online' : 'offline');
+  document.getElementById('conn-text').textContent = online ? 'Bağlı' : 'Bağlantı kesildi';
+}
+
+function publish(event, data) {
+  if (!ablyChannel) return;
+  ablyChannel.publish(event, { ...data, role: myRole, clientId: myClientId });
+}
+
+function subscribeChannel(code) {
+  ablyChannel = ablyClient.channels.get('pisti-' + code);
+
+  // Host → guest: oyun başlat
+  ablyChannel.subscribe('game_start', msg => {
+    if (myRole !== 'guest') return;
+    const d = msg.data;
+    gameTarget = d.target;
+    oppName    = d.hostName || 'Ev Sahibi';
+    ONLINE_TARGET = d.target;
+    launchOnline_guest(d.deck);
+  });
+
+  // Karşı taraf kart oynadı
+  ablyChannel.subscribe('card_played', msg => {
+    if (msg.data.clientId === myClientId) return; // kendi mesajımız
+    receiveOpponentCard(msg.data.cardIdx);
+  });
+
+  // Karşı taraf "devam" dedi
+  ablyChannel.subscribe('round_continue', msg => {
+    if (msg.data.clientId === myClientId) return;
+    pendingOppContinue = true;
+    tryBothContinue();
+  });
+
+  // Host yeni el başlattı (rematch veya next round)
+  ablyChannel.subscribe('new_round', msg => {
+    if (msg.data.clientId === myClientId) return;
+    if (myRole === 'guest') {
+      gameTarget = msg.data.target;
+      applyNewRound_guest(msg.data.deck, msg.data.isRematch);
+    }
+  });
+
+  // Rakip ayrıldı
+  ablyChannel.subscribe('player_left', msg => {
+    if (msg.data.clientId === myClientId) return;
+    showToast('😢 Rakip oyundan ayrıldı', 4000);
+    setConnBadge(false);
+  });
+
+  ablyClient.connection.on('disconnected', () => setConnBadge(false));
+  ablyClient.connection.on('connected',    () => setConnBadge(true));
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ODA AKIŞI
+// ════════════════════════════════════════════════════════════════
+let currentRoomCode  = null;
+let roomPhase        = 'idle'; // idle | connecting | hosting | joining | playing
+
+async function createRoom() {
+  if (roomPhase !== 'idle') return;
+  roomPhase = 'connecting';
+  setRoomStatus('<span class="spinner"></span>Sunucuya bağlanılıyor...');
+  disableRoomActions();
+
+  try {
+    await connectAbly();
+  } catch (e) {
+    roomPhase = 'idle';
+    setRoomStatus('❌ ' + e.message);
+    enableRoomActions();
+    return;
+  }
+
+  // Sunucudan oda kodu al
+  let roomData;
+  try {
+    const res = await fetch(`${SERVER_URL}/room/create`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ target: ONLINE_TARGET }),
+    });
+    if (!res.ok) throw new Error();
+    roomData = await res.json();
+  } catch (e) {
+    disconnectAbly();
+    roomPhase = 'idle';
+    setRoomStatus('❌ Oda oluşturulamadı');
+    enableRoomActions();
+    return;
+  }
+
+  currentRoomCode = roomData.code;
+  myRole = 'host';
+  subscribeChannel(currentRoomCode);
+  setConnBadge(true);
+
+  // Guest gelince dinle
+  ablyChannel.subscribe('guest_joined', msg => {
+    if (roomPhase !== 'hosting') return;
+    oppName = msg.data.guestName || 'Misafir';
+    roomPhase = 'ready';
+    setRoomStatus('✅ ' + oppName + ' bağlandı!');
+    document.getElementById('room-action-area').innerHTML = `
+      <button class="btn btn-primary" style="width:100%;font-size:16px;margin-bottom:8px"
+        onclick="hostStartGame()">Oyunu Başlat 🎮</button>
+      <button class="btn btn-secondary" style="width:100%;font-size:14px;padding:10px"
+        onclick="cancelRoom()">İptal</button>`;
+  });
+
+  roomPhase = 'hosting';
+  document.getElementById('room-code-display').textContent = currentRoomCode;
+  setRoomStatus('Kodu arkadaşına gönder!');
+  document.getElementById('room-action-area').innerHTML = `
+    <div style="color:rgba(245,240,232,.5);font-size:12px;margin-bottom:8px">
+      <span class="spinner"></span>Rakip bekleniyor...</div>
+    <button class="btn btn-secondary" style="width:100%;font-size:14px;padding:10px"
+      onclick="cancelRoom()">İptal Et</button>`;
+}
+
+function hostStartGame() {
+  if (roomPhase !== 'ready') return;
+  roomPhase = 'playing';
+  const deck = createDeck();
+  publish('game_start', { deck, target: ONLINE_TARGET, hostName: myName });
+  gameTarget    = ONLINE_TARGET;
+  lastMode      = 'online';
+  launchOnline_host(deck);
+}
+
+async function joinRoom() {
+  if (roomPhase !== 'idle') return;
+  const code = document.getElementById('join-code').value.trim().toUpperCase();
+  if (code.length !== 4) return;
+
+  roomPhase = 'connecting';
+  setJoinStatus('<span class="spinner"></span>Bağlanılıyor...');
+  document.getElementById('join-btn').style.opacity = '0.4';
+  document.getElementById('join-btn').style.pointerEvents = 'none';
+  document.getElementById('join-code').disabled = true;
+
+  // Önce oda var mı kontrol et
+  try {
+    const res = await fetch(`${SERVER_URL}/room/${code}`);
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Oda bulunamadı');
+    }
+    const roomData = await res.json();
+    ONLINE_TARGET = roomData.target;
+    gameTarget    = roomData.target;
+  } catch (e) {
+    roomPhase = 'idle';
+    setJoinStatus('❌ ' + e.message);
+    document.getElementById('join-code').disabled = false;
+    onJoinInput();
+    return;
+  }
+
+  try {
+    await connectAbly();
+  } catch (e) {
+    roomPhase = 'idle';
+    setJoinStatus('❌ Bağlantı hatası: ' + e.message);
+    document.getElementById('join-code').disabled = false;
+    onJoinInput();
+    return;
+  }
+
+  currentRoomCode = code;
+  myRole = 'guest';
+  subscribeChannel(code);
+  setConnBadge(true);
+
+  // Ev sahibine bildir
+  publish('guest_joined', { guestName: myName });
+
+  roomPhase = 'joining';
+  setJoinStatus('✅ Bağlandı! Ev sahibinin başlatmasını bekle...');
+}
+
+function cancelRoom() {
+  publish('player_left', {});
+  if (currentRoomCode) fetch(`${SERVER_URL}/room/${currentRoomCode}`, { method:'DELETE' }).catch(()=>{});
+  disconnectAbly();
+  roomPhase       = 'idle';
+  currentRoomCode = null;
+  resetRoomUI();
+}
+
+function leaveRoomScreen() {
+  if (roomPhase !== 'idle') cancelRoom();
+  showScreen('mode-select');
+}
+
+function onJoinInput() {
+  const v   = document.getElementById('join-code').value;
+  const btn = document.getElementById('join-btn');
+  const ok  = v.length === 4;
+  btn.style.opacity       = ok ? '1'    : '0.4';
+  btn.style.pointerEvents = ok ? 'auto' : 'none';
+}
+
+function setRoomStatus(html) { document.getElementById('room-status').innerHTML  = html; }
+function setJoinStatus(html) { document.getElementById('join-status').innerHTML  = html; }
+
+function disableRoomActions() {
+  document.getElementById('room-action-area').innerHTML =
+    `<button class="btn btn-primary" style="width:100%;font-size:16px;opacity:.5" disabled>Oda Oluştur</button>`;
+}
+function enableRoomActions() {
+  document.getElementById('room-action-area').innerHTML =
+    `<button class="btn btn-primary" style="width:100%;font-size:16px" onclick="createRoom()">Oda Oluştur</button>`;
+}
+
+function resetRoomUI() {
+  document.getElementById('room-code-display').textContent = '—';
+  setRoomStatus('Oda kurmak için tıkla');
+  enableRoomActions();
+  const jc = document.getElementById('join-code');
+  jc.value = ''; jc.disabled = false;
+  onJoinInput();
+  setJoinStatus('');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  KART UTILS
+// ════════════════════════════════════════════════════════════════
+const SUITS      = ['♠','♥','♦','♣'];
+const RANKS      = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const SUIT_COLOR = {'♠':'black','♣':'black','♥':'red','♦':'red'};
+
+function cardPoints(c) {
+  if (c.rank==='J')  return 1;
+  if (c.rank==='A')  return 1;
+  if (c.rank==='2')  return 2;
+  if (c.rank==='10' && c.suit==='♦') return 3;
+  return 0;
+}
+function createDeck() {
+  const d = [];
+  for (const s of SUITS) for (const r of RANKS) d.push({rank:r,suit:s});
+  for (let i=d.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]]; }
+  return d;
+}
+function makeCardEl(card, faceUp) {
+  const el = document.createElement('div');
+  el.className = 'card ' + (faceUp ? 'face-up '+SUIT_COLOR[card.suit] : 'face-down');
+  if (faceUp) el.innerHTML = `<div class="card-inner"><div class="card-rank">${card.rank}</div><div class="card-suit">${card.suit}</div></div>`;
+  return el;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  OYUN DURUMU
+// ════════════════════════════════════════════════════════════════
+let G                = {};
+let lastMode         = 'ai';
+let animating        = false;
+let gameTarget       = 51;
+let aiTimerHandle    = null;
+let pendingOppContinue = false;
+let iContinued         = false;
+
+function clearAITimers() {
+  if (aiTimerHandle) { clearTimeout(aiTimerHandle); aiTimerHandle=null; }
+}
+
+// ── AI modu başlat ───────────────────────────────────────────────
+function startAI() {
+  lastMode   = 'ai';
+  gameTarget = SETTINGS.aiTarget;
+  cleanupOverlays();
+  clearAITimers();
+  animating = false;
+  G = makeGameState('Sen','Yapay Zeka','ai');
+  dealHands_ai();
+  for (let i=0;i<4;i++) G.pile.push(G.deck.pop());
+  document.getElementById('conn-badge').style.display = 'none';
+  document.getElementById('target-display').textContent = gameTarget;
+  updateUI();
+  showScreen('game');
+  if (G.currentTurn===1) scheduleAI();
+}
+
+// ── Online HOST başlat ───────────────────────────────────────────
+function launchOnline_host(deck) {
+  lastMode = 'online';
+  cleanupOverlays(); clearAITimers(); animating=false;
+  pendingOppContinue=false; iContinued=false;
+
+  G = makeGameState(myName, oppName, 'online');
+  G.isHost = true;
+  G.deck   = cloneDeck(deck);
+  dealHands_online_host();
+  for (let i=0;i<4;i++) G.pile.push(G.deck.pop());
+  document.getElementById('target-display').textContent = gameTarget;
+  setConnBadge(true);
+  updateUI();
+  showScreen('game');
+  roomPhase = 'playing';
+}
+
+// ── Online GUEST başlat ──────────────────────────────────────────
+function launchOnline_guest(deck) {
+  lastMode = 'online';
+  cleanupOverlays(); clearAITimers(); animating=false;
+  pendingOppContinue=false; iContinued=false;
+
+  G = makeGameState(myName, oppName, 'online');
+  G.isHost = false;
+  G.deck   = cloneDeck(deck);
+  dealHands_online_guest();
+  for (let i=0;i<4;i++) G.pile.push(G.deck.pop());
+  document.getElementById('target-display').textContent = gameTarget;
+  setConnBadge(true);
+  updateUI();
+  showScreen('game');
+  roomPhase = 'playing';
+}
+
+function makeGameState(name0, name1, mode) {
+  return {
+    mode, isHost: true,
+    players: [
+      { name:name0, hand:[], score:0, totalScore:0, wonCards:[], roundScore:0, cardCount:0 },
+      { name:name1, hand:[], score:0, totalScore:0, wonCards:[], roundScore:0, cardCount:0 },
+    ],
+    deck: createDeck(), pile:[], currentTurn:0, lastWinner:0, handNumber:0, roundNumber:1,
+  };
+}
+function cloneDeck(d) { return JSON.parse(JSON.stringify(d)); }
+
+// Dağıt — AI / offline
+function dealHands_ai() {
+  if (G.deck.length<8) return false;
+  for (let p=0;p<2;p++) { G.players[p].hand=[]; for (let i=0;i<4;i++) G.players[p].hand.push(G.deck.pop()); }
+  G.handNumber++; return true;
+}
+// Dağıt — Online HOST: sırayla bir host bir guest
+function dealHands_online_host() {
+  if (G.deck.length<8) return false;
+  G.players[0].hand=[]; G.players[1].hand=[];
+  for (let i=0;i<4;i++) {
+    G.players[0].hand.push(G.deck.pop()); // host
+    G.players[1].hand.push(G.deck.pop()); // guest
+  }
+  G.handNumber++; return true;
+}
+// Dağıt — Online GUEST: tam tersi (guest p0, host p1)
+function dealHands_online_guest() {
+  if (G.deck.length<8) return false;
+  const hostCards=[], guestCards=[];
+  for (let i=0;i<4;i++) { hostCards.push(G.deck.pop()); guestCards.push(G.deck.pop()); }
+  G.players[0].hand = guestCards;
+  G.players[1].hand = hostCards;
+  G.handNumber++; return true;
+}
+
+// ── Kart oyna ────────────────────────────────────────────────────
+function playCard(idx) {
+  if (animating || G.currentTurn!==0) return;
+  const card = G.players[0].hand.splice(idx,1)[0];
+  animating=true; updateUI();
+  if (G.mode==='online') publish('card_played', { cardIdx:idx });
+  animateFly(card,0,()=>resolve(0,card));
+}
+
+function receiveOpponentCard(idx) {
+  if (animating) { setTimeout(()=>receiveOpponentCard(idx),200); return; }
+  if (G.currentTurn!==1) return;
+  const card = G.players[1].hand.splice(idx,1)[0];
+  if (!card) return;
+  animating=true; updateUI();
+  animateFly(card,1,()=>resolve(1,card));
+}
+
+function resolve(pIdx, card) {
+  const top      = G.pile.length>0 ? G.pile[G.pile.length-1] : null;
+  const captures = top && (card.rank==='J' || card.rank===top.rank);
+  if (captures) {
+    const isPisti = G.pile.length===1 && card.rank===top.rank;
+    G.players[pIdx].wonCards.push(...G.pile, card);
+    G.pile=[]; G.lastWinner=pIdx;
+    if (isPisti) { G.players[pIdx].score+=10; showPisti(pIdx); }
+    else showToast(G.players[pIdx].name+' aldı! 🎉');
+  } else {
+    G.pile.push(card);
+  }
+  animating=false;
+  nextTurn();
+}
+
+function nextTurn() {
+  const p0E=G.players[0].hand.length===0, p1E=G.players[1].hand.length===0;
+  if (p0E && p1E) {
+    let ok;
+    if (G.mode==='online') ok = G.isHost ? dealHands_online_host() : dealHands_online_guest();
+    else ok = dealHands_ai();
+    if (!ok) { endRound(); return; }
+  }
+  G.currentTurn = 1-G.currentTurn;
+  updateUI();
+  if (G.mode==='ai' && G.currentTurn===1) scheduleAI();
+}
+
+// ── AI ───────────────────────────────────────────────────────────
+function scheduleAI() {
+  clearAITimers();
+  aiTimerHandle = setTimeout(aiTurn, 800+Math.random()*600);
+}
+function aiTurn() {
+  aiTimerHandle=null;
+  if (animating||!document.getElementById('game').classList.contains('active')) return;
+  if (animating) { scheduleAI(); return; }
+  const ai=G.players[1]; if (!ai.hand.length) { nextTurn(); return; }
+  const top=G.pile.length>0?G.pile[G.pile.length-1]:null;
+  let chosen=-1;
+  if (top) {
+    const mi=ai.hand.findIndex(c=>c.rank===top.rank); if (mi!==-1) chosen=mi;
+    if (chosen===-1) {
+      const pv=G.pile.reduce((s,c)=>s+cardPoints(c),0);
+      const ji=ai.hand.findIndex(c=>c.rank==='J');
+      if (pv>=1&&ji!==-1) chosen=ji;
+    }
+  }
+  if (chosen===-1) {
+    const nj=ai.hand.map((_,i)=>i).filter(i=>ai.hand[i].rank!=='J');
+    chosen=nj.length ? nj.sort((a,b)=>cardPoints(ai.hand[a])-cardPoints(ai.hand[b]))[0] : 0;
+  }
+  const card=ai.hand.splice(chosen,1)[0];
+  animating=true; updateUI();
+  animateFly(card,1,()=>resolve(1,card));
+}
+
+// ── El sonu ──────────────────────────────────────────────────────
+function endRound() {
+  if (G.pile.length>0) { G.players[G.lastWinner].wonCards.push(...G.pile); G.pile=[]; }
+  for (let p=0;p<2;p++) {
+    let pts=G.players[p].score;
+    G.players[p].wonCards.forEach(c=>{pts+=cardPoints(c);});
+    G.players[p].roundScore=pts;
+    G.players[p].cardCount=G.players[p].wonCards.length;
+  }
+  if (G.players[0].cardCount>G.players[1].cardCount) G.players[0].roundScore+=3;
+  else if (G.players[1].cardCount>G.players[0].cardCount) G.players[1].roundScore+=3;
+  G.players[0].totalScore+=G.players[0].roundScore;
+  G.players[1].totalScore+=G.players[1].roundScore;
+  showHandEnd();
+}
+
+function showHandEnd() {
+  cleanupOverlays();
+  pendingOppContinue=false; iContinued=false;
+  const p0=G.players[0],p1=G.players[1];
+  const elWin = p0.roundScore>p1.roundScore ? p0.name : p1.roundScore>p0.roundScore ? p1.name : null;
+  const elTxt = elWin ? `🏅 Bu elde: ${elWin}` : '🤝 Bu el berabere';
+  const over  = p0.totalScore>=gameTarget||p1.totalScore>=gameTarget;
+  const ov=document.createElement('div');
+  ov.className='overlay hand-end-overlay';
+  ov.innerHTML=`
+    <div class="overlay-box">
+      <div class="overlay-title">El ${G.roundNumber} Bitti!</div>
+      <div class="hand-scores">
+        <div class="hs-player">
+          <div class="hs-name">${p0.name}</div>
+          <div class="hs-pts" style="color:${p0.roundScore>=p1.roundScore?'var(--gold-light)':'var(--cream)'}">+${p0.roundScore}</div>
+          <div class="hs-total">Toplam: ${p0.totalScore}</div>
+        </div>
+        <div class="hs-divider"></div>
+        <div class="hs-player">
+          <div class="hs-name">${p1.name}</div>
+          <div class="hs-pts" style="color:${p1.roundScore>p0.roundScore?'var(--gold-light)':'var(--cream)'}">+${p1.roundScore}</div>
+          <div class="hs-total">Toplam: ${p1.totalScore}</div>
+        </div>
+      </div>
+      <div style="color:rgba(245,240,232,.55);font-size:13px;margin-bottom:6px">
+        Hedef: <span style="color:var(--gold-light)">${gameTarget}</span>
+      </div>
+      <div style="color:rgba(212,168,67,.85);font-size:14px;margin-bottom:18px">${elTxt}</div>
+      <button class="btn btn-primary" style="width:100%;font-size:16px" id="cont-btn" onclick="pressContinue()">
+        ${over?'Sonuçları Gör 🏆':'Devam Et →'}
+      </button>
+      <div id="cont-wait" style="color:rgba(245,240,232,.4);font-size:12px;margin-top:10px;min-height:18px;"></div>
+    </div>`;
+  document.body.appendChild(ov);
+}
+
+function pressContinue() {
+  iContinued=true;
+  const btn=document.getElementById('cont-btn');
+  if (btn) { btn.textContent='⏳ Rakip bekleniyor...'; btn.disabled=true; }
+  if (G.mode==='online') { publish('round_continue',{}); tryBothContinue(); }
+  else actuallyNextRound();
+}
+
+function tryBothContinue() {
+  if (iContinued && (G.mode!=='online' || pendingOppContinue)) actuallyNextRound();
+}
+
+function actuallyNextRound() {
+  cleanupOverlays();
+  if (G.players[0].totalScore>=gameTarget||G.players[1].totalScore>=gameTarget) { showFinal(); return; }
+  G.roundNumber++;
+  G.players.forEach(p=>{p.score=0;p.wonCards=[];p.roundScore=0;p.cardCount=0;});
+  G.pile=[]; G.currentTurn=0; G.handNumber=0;
+
+  if (G.mode==='online') {
+    if (G.isHost) {
+      const deck=createDeck();
+      G.deck=cloneDeck(deck);
+      publish('new_round',{deck,target:gameTarget,isRematch:false});
+      dealHands_online_host();
+    } else {
+      // guest bekler — new_round mesajı gelince applyNewRound_guest çağrılır
+      return;
+    }
+  } else {
+    G.deck=createDeck();
+    dealHands_ai();
+  }
+  for (let i=0;i<4;i++) G.pile.push(G.deck.pop());
+  pendingOppContinue=false; iContinued=false;
+  updateUI();
+  if (G.mode==='ai'&&G.currentTurn===1) scheduleAI();
+}
+
+function applyNewRound_guest(deck, isRematch) {
+  if (isRematch) {
+    G.players.forEach(p=>{ p.score=0; p.wonCards=[]; p.roundScore=0; p.cardCount=0; p.totalScore=0; });
+    G.roundNumber=1;
+  }
+  G.deck=cloneDeck(deck); G.pile=[]; G.currentTurn=0; G.handNumber=0;
+  dealHands_online_guest();
+  for (let i=0;i<4;i++) G.pile.push(G.deck.pop());
+  pendingOppContinue=false; iContinued=false;
+  cleanupOverlays();
+  updateUI();
+}
+
+function showFinal() {
+  const p0=G.players[0],p1=G.players[1];
+  const s0=p0.totalScore,s1=p1.totalScore;
+  const w=s0>s1?p0.name+' kazandı! 🏆':s1>s0?p1.name+' kazandı! 🏆':'Berabere! 🤝';
+  document.getElementById('res-name1').textContent=p0.name;
+  document.getElementById('res-pts1').textContent=s0+' puan';
+  document.getElementById('res-info1').textContent=G.roundNumber+' el oynandı';
+  document.getElementById('res-name2').textContent=p1.name;
+  document.getElementById('res-pts2').textContent=s1+' puan';
+  document.getElementById('res-info2').textContent=G.roundNumber+' el oynandı';
+  document.getElementById('res-winner').textContent=w;
+  document.getElementById('result-title').textContent=w.includes('Berabere')?'Berabere!':'Oyun Bitti!';
+  showScreen('result');
+}
+
+function replayGame() {
+  cleanupOverlays();
+  if (lastMode==='ai') { startAI(); return; }
+  if (!G.isHost) { showToast('Ev sahibi yeni oyun başlatıyor...'); return; }
+  // Host rematch
+  const deck=createDeck();
+  G.players.forEach(p=>{p.score=0;p.wonCards=[];p.roundScore=0;p.cardCount=0;p.totalScore=0;});
+  G.roundNumber=1; G.pile=[]; G.currentTurn=0; G.handNumber=0;
+  G.deck=cloneDeck(deck);
+  publish('new_round',{deck,target:gameTarget,isRematch:true});
+  dealHands_online_host();
+  for (let i=0;i<4;i++) G.pile.push(G.deck.pop());
+  updateUI();
+  showScreen('game');
+}
+
+// ── Pişti ────────────────────────────────────────────────────────
+function showPisti(pIdx) {
+  const f=document.createElement('div'); f.className='pisti-flash'; f.textContent='🎊 PİŞTİ! +10';
+  document.body.appendChild(f); setTimeout(()=>f.remove(),950);
+  showToast(G.players[pIdx].name+' PİŞTİ yaptı! +10 puan 🎊',2500);
+}
+
+// ── Animasyon ────────────────────────────────────────────────────
+function animateFly(card,from,onDone) {
+  const r=document.getElementById('pile-zone').getBoundingClientRect();
+  const cx=r.left+r.width/2, cy=r.top+r.height/2;
+  const el=document.createElement('div');
+  el.className='flying-card face-up '+SUIT_COLOR[card.suit];
+  el.style.cssText=`left:${cx}px;top:${cy}px;background:white;border:1.5px solid rgba(0,0,0,.12);`;
+  el.innerHTML=`<div class="card-inner"><div class="card-rank">${card.rank}</div><div class="card-suit">${card.suit}</div></div>`;
+  el.classList.add(from===1?'from-top':'from-bottom');
+  document.body.appendChild(el);
+  setTimeout(()=>{el.remove();onDone();},450);
+}
+
+// ── Yardımcılar ──────────────────────────────────────────────────
+function cleanupOverlays() {
+  document.querySelectorAll('.hand-end-overlay,.flying-card,.pisti-flash,.toast').forEach(e=>e.remove());
+}
+function showToast(msg,dur=2000) {
+  document.querySelectorAll('.toast').forEach(e=>e.remove());
+  const t=document.createElement('div'); t.className='toast'; t.textContent=msg;
+  document.body.appendChild(t); setTimeout(()=>t.remove(),dur);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  UI GÜNCELLEME
+// ════════════════════════════════════════════════════════════════
+function updateUI() {
+  if (!G.players) return;
+  const p0=G.players[0],p1=G.players[1];
+  document.getElementById('name-bottom').textContent  = p0.name;
+  document.getElementById('name-top').textContent     = p1.name;
+  document.getElementById('score-bottom').textContent = p0.totalScore+' / '+gameTarget;
+  document.getElementById('score-top').textContent    = p1.totalScore+' / '+gameTarget;
+  document.getElementById('cards-bottom').textContent = 'el puanı: '+p0.score;
+  document.getElementById('cards-top').textContent    = 'el puanı: '+p1.score;
+
+  const lbl=document.getElementById('turn-label');
+  const piB=document.getElementById('pi-bottom');
+  const piT=document.getElementById('pi-top');
+  if (G.currentTurn===0) {
+    lbl.textContent='👆 Kartına dokun'; lbl.className='turn-label my-turn';
+    piB.classList.add('active-player'); piT.classList.remove('active-player');
+  } else {
+    lbl.textContent=G.mode==='ai'?'🤖 Yapay Zeka düşünüyor...':'⏳ Rakibin sırası';
+    lbl.className='turn-label';
+    piT.classList.add('active-player'); piB.classList.remove('active-player');
+  }
+
+  // Rakip eli
+  const oppEl=document.getElementById('opp-hand');
+  oppEl.innerHTML='';
+  p1.hand.forEach(()=>oppEl.appendChild(makeCardEl({},false)));
+
+  // Kendi elin
+  const plEl=document.getElementById('player-hand');
+  plEl.innerHTML='';
+  const myTurn=G.currentTurn===0&&!animating;
+  p0.hand.forEach((c,i)=>{
+    const el=makeCardEl(c,true);
+    if (myTurn) {
+      el.classList.add('playable');
+      const play=()=>playCard(i);
+      el.addEventListener('click',play);
+      el.addEventListener('touchend',e=>{e.preventDefault();play();},{passive:false});
+    }
+    plEl.appendChild(el);
+  });
+
+  // Yığın
+  const pz=document.getElementById('pile-zone');
+  Array.from(pz.children).forEach(ch=>{if(!ch.classList.contains('pile-label'))ch.remove();});
+  const ms=Math.min(G.pile.length,5);
+  for (let i=G.pile.length-ms;i<G.pile.length;i++) {
+    const c=G.pile[i], div=makeCardEl(c,true);
+    div.classList.add('pile-card');
+    const off=i-(G.pile.length-ms);
+    div.style.left=(off*12-28)+'px';
+    div.style.top=(Math.sin(off)*4)+'px';
+    div.style.transform=`rotate(${(off-ms/2)*6}deg)`;
+    div.style.zIndex=i;
+    pz.insertBefore(div,pz.firstChild);
+  }
+  document.getElementById('pile-count').textContent=G.pile.length>0?G.pile.length+' kart':'Boş masa';
+
+  // Deste
+  const de=document.getElementById('deck-visual');
+  de.innerHTML='';
+  if (G.deck.length>0) {
+    const dc=makeCardEl({},false); dc.style.cssText='position:relative;width:38px;height:54px;';
+    de.appendChild(dc);
+  }
+  document.getElementById('deck-count').textContent=G.deck.length+' kart';
+}
+</script>
+</body>
+</html>
